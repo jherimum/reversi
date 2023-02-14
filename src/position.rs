@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 use thiserror::Error;
 
@@ -26,7 +26,7 @@ impl Position {
     }
 
     fn piece(&self) -> Result<Option<Piece>, BoardError> {
-        let x = self.data.borrow_mut()[self.coords.row][self.coords.col];
+        let x = self.data.borrow_mut().read(self.coords);
         let x: Result<Wrap<Option<Piece>>, BoardError> = x.try_into();
         x.map(|w| w.0)
     }
@@ -36,16 +36,16 @@ impl Position {
             return Err(BoardError::PositionAlreadyOccupied);
         }
 
-        self.data.borrow_mut()[self.coords.row][self.coords.col] = piece.into();
+        self.data.borrow_mut().write(self.coords, piece.into());
 
         Ok(self)
     }
 
-    fn flip(self) -> Result<Self, PositionError> {
+    pub fn flip(self) -> Result<Self, PositionError> {
         match self.piece() {
             Ok(p) => match p {
                 Some(p) => {
-                    self.data.borrow_mut()[self.coords.row][self.coords.col] = (!p).into();
+                    self.data.borrow_mut().write(self.coords, (!p).into());
                     Ok(self)
                 }
                 None => Err(PositionError::FlipError),
@@ -65,11 +65,5 @@ impl Debug for Position {
             .field("piece", &self.piece())
             .field("coords", &self.coords)
             .finish()
-    }
-}
-
-impl Display for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
     }
 }
