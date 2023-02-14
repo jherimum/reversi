@@ -1,16 +1,18 @@
 pub mod coordinates;
 
-use coordinates::{Coordinates, Direction};
+use coordinates::{Coords, Direction};
 use std::{
     cell::RefCell,
     fmt::{Debug, Display},
     rc::Rc,
 };
 
+pub type DataPointer = Rc<RefCell<Vec<Vec<char>>>>;
+
 pub struct PositionIterator {
     direction: Direction,
-    coordinates: Coordinates,
-    board: Rc<RefCell<Vec<Vec<char>>>>,
+    coords: Coords,
+    data: DataPointer,
 }
 
 impl Iterator for PositionIterator {
@@ -43,7 +45,7 @@ pub mod board;
 #[derive(Debug)]
 pub struct Board {
     size: usize,
-    positions: Rc<RefCell<Vec<Vec<char>>>>,
+    data: DataPointer,
 }
 
 impl Display for Board {
@@ -61,9 +63,9 @@ impl Display for Board {
 }
 
 impl Board {
-    pub fn get(&self, coord: &Coordinates) -> Result<Position, BoardError> {
-        if self.size > coord.row && self.size > coord.col {
-            return Ok(Position::new(self.positions.clone(), coord.clone()));
+    pub fn get(&self, coords: &Coords) -> Result<Position, BoardError> {
+        if self.size > coords.row && self.size > coords.col {
+            return Ok(Position::new(self.data.clone(), coords.clone()));
         }
         Err(BoardError::InvalidPosition)
     }
@@ -91,14 +93,14 @@ impl Board {
 
         Ok(Board {
             size,
-            positions: Rc::new(RefCell::new(positions)),
+            data: Rc::new(RefCell::new(positions)),
         })
     }
 }
 
 pub struct Position {
-    board: Rc<RefCell<Vec<Vec<char>>>>,
-    coordinates: Coordinates,
+    data: DataPointer,
+    coordinates: Coords,
 }
 
 impl Debug for Position {
@@ -117,20 +119,20 @@ impl Display for Position {
 }
 
 impl Position {
+    pub fn new(data: DataPointer, coordinates: Coords) -> Self {
+        Position { data, coordinates }
+    }
+
     fn stream(&self, direction: Direction) -> PositionIterator {
         PositionIterator {
             direction: direction,
-            coordinates: self.coordinates,
-            board: self.board.clone(),
+            coords: self.coordinates,
+            data: self.data.clone(),
         }
     }
 
-    pub fn new(board: Rc<RefCell<Vec<Vec<char>>>>, coordinates: Coordinates) -> Self {
-        Position { board, coordinates }
-    }
-
     fn piece(&self) -> Result<Option<Piece>, BoardError> {
-        let x = self.board.borrow_mut()[self.coordinates.row][self.coordinates.col];
+        let x = self.data.borrow_mut()[self.coordinates.row][self.coordinates.col];
         let x: Result<Wrap<Option<Piece>>, BoardError> = x.try_into();
         x.map(|w| w.0)
     }
@@ -140,7 +142,7 @@ impl Position {
             return Err(BoardError::PositionAlreadyOccupied);
         }
 
-        self.board.borrow_mut()[self.coordinates.row][self.coordinates.col] = piece.into();
+        self.data.borrow_mut()[self.coordinates.row][self.coordinates.col] = piece.into();
 
         Ok(self)
     }
@@ -149,7 +151,7 @@ impl Position {
         match self.piece() {
             Ok(p) => match p {
                 Some(p) => {
-                    self.board.borrow_mut()[self.coordinates.row][self.coordinates.col] =
+                    self.data.borrow_mut()[self.coordinates.row][self.coordinates.col] =
                         p.flip().into();
                     Ok(self)
                 }

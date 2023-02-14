@@ -2,7 +2,7 @@ use regex::Regex;
 use std::{fmt::Display, str::FromStr};
 use thiserror::Error;
 
-type Coord = Coordinates;
+pub type Coords = Coordinates;
 
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum CoordinatesError {
@@ -24,77 +24,68 @@ pub enum Direction {
 
 #[derive(Debug)]
 pub struct CoordinatesIterator<'c> {
-    coordinates: &'c Coordinates,
+    coords: &'c Coords,
     direction: Direction,
     ix: usize,
 }
 
 impl<'c> Iterator for CoordinatesIterator<'c> {
-    type Item = Coord;
+    type Item = Coords;
 
     fn next(&mut self) -> Option<Self::Item> {
         let x = match self.direction {
             Direction::Up => {
-                if self.coordinates.row >= self.ix {
-                    Some(Coord {
-                        row: self.coordinates.row - self.ix,
-                        col: self.coordinates.col,
+                if self.coords.row >= self.ix {
+                    Some(Coords {
+                        row: self.coords.row - self.ix,
+                        col: self.coords.col,
                     })
                 } else {
                     None
                 }
             }
             Direction::UpRight => {
-                if self.coordinates.row >= self.ix {
-                    Some(Coord::new(
-                        self.coordinates.row - self.ix,
-                        self.coordinates.col + self.ix,
+                if self.coords.row >= self.ix {
+                    Some(Coords::new(
+                        self.coords.row - self.ix,
+                        self.coords.col + self.ix,
                     ))
                 } else {
                     None
                 }
             }
 
-            Direction::Right => Some(Coord::new(
-                self.coordinates.row,
-                self.coordinates.col + self.ix,
+            Direction::Right => Some(Coords::new(self.coords.row, self.coords.col + self.ix)),
+
+            Direction::DownRight => Some(Coords::new(
+                self.coords.row + self.ix,
+                self.coords.col + self.ix,
             )),
 
-            Direction::DownRight => Some(Coord::new(
-                self.coordinates.row + self.ix,
-                self.coordinates.col + self.ix,
-            )),
-
-            Direction::Down => Some(Coord::new(
-                self.coordinates.row + self.ix,
-                self.coordinates.col,
-            )),
+            Direction::Down => Some(Coords::new(self.coords.row + self.ix, self.coords.col)),
 
             Direction::DownLeft => {
-                if self.coordinates.col >= self.ix {
-                    Some(Coord::new(
-                        self.coordinates.row + self.ix,
-                        self.coordinates.col - self.ix,
+                if self.coords.col >= self.ix {
+                    Some(Coords::new(
+                        self.coords.row + self.ix,
+                        self.coords.col - self.ix,
                     ))
                 } else {
                     None
                 }
             }
             Direction::Left => {
-                if self.coordinates.col >= self.ix {
-                    Some(Coord::new(
-                        self.coordinates.row,
-                        self.coordinates.col - self.ix,
-                    ))
+                if self.coords.col >= self.ix {
+                    Some(Coords::new(self.coords.row, self.coords.col - self.ix))
                 } else {
                     None
                 }
             }
             Direction::UpLeft => {
-                if self.coordinates.col >= self.ix && self.coordinates.row >= self.ix {
-                    Some(Coord::new(
-                        self.coordinates.row - self.ix,
-                        self.coordinates.col - self.ix,
+                if self.coords.col >= self.ix && self.coords.row >= self.ix {
+                    Some(Coords::new(
+                        self.coords.row - self.ix,
+                        self.coords.col - self.ix,
                     ))
                 } else {
                     None
@@ -114,12 +105,12 @@ pub struct Coordinates {
 
 impl Coordinates {
     pub fn new(row: usize, col: usize) -> Self {
-        Coordinates { row, col }
+        Self { row, col }
     }
 
     pub fn iterator(&self, direction: Direction) -> CoordinatesIterator {
         CoordinatesIterator {
-            coordinates: self,
+            coords: self,
             direction,
             ix: 1,
         }
@@ -162,7 +153,7 @@ impl FromStr for Coordinates {
                 .as_str(),
         )?;
 
-        Ok(Coordinates {
+        Ok(Coords {
             row: row,
             col: col - 1,
         })
@@ -243,278 +234,278 @@ mod tests {
 
     #[test]
     fn test_coordinates_to_string() {
-        assert_eq!(Coordinates::new(0, 0).to_string(), "A:1");
-        assert_eq!(Coordinates::new(1, 50).to_string(), "B:51");
+        assert_eq!(Coords::new(0, 0).to_string(), "A:1");
+        assert_eq!(Coords::new(1, 50).to_string(), "B:51");
     }
 
     #[rstest]
     fn test_invalid_coordinates_from_str() {
         assert_eq!(
-            Coordinates::from_str("B").unwrap_err(),
+            Coords::from_str("B").unwrap_err(),
             CoordinatesError::ParseError("B".to_string())
         );
 
         assert_eq!(
-            Coordinates::from_str("B1").unwrap_err(),
+            Coords::from_str("B1").unwrap_err(),
             CoordinatesError::ParseError("B1".to_string())
         );
 
         assert_eq!(
-            Coordinates::from_str("B 1").unwrap_err(),
+            Coords::from_str("B 1").unwrap_err(),
             CoordinatesError::ParseError("B 1".to_string())
         );
     }
 
     #[rstest]
-    #[case("A:1", Coordinates{row: 0, col:0})]
-    #[case("B:1", Coordinates{row: 1, col:0})]
-    #[case("AA:26", Coordinates{row: 26, col:25})]
-    fn test_coordinates_from_str(#[case] input: &str, #[case] output: Coordinates) {
-        assert_eq!(Coordinates::from_str(input).unwrap(), output)
+    #[case("A:1", Coords{row: 0, col:0})]
+    #[case("B:1", Coords{row: 1, col:0})]
+    #[case("AA:26", Coords{row: 26, col:25})]
+    fn test_coordinates_from_str(#[case] input: &str, #[case] output: Coords) {
+        assert_eq!(Coords::from_str(input).unwrap(), output)
     }
 
     #[test]
     fn coordinates_iterator_up() {
-        let c = Coordinates::from_str("A:1").unwrap();
+        let c = Coords::from_str("A:1").unwrap();
         let mut i = c.iterator(Direction::Up);
         assert!(i.next().is_none());
 
-        let c = Coordinates::from_str("A:2").unwrap();
+        let c = Coords::from_str("A:2").unwrap();
         let mut i = c.iterator(Direction::Up);
         assert!(i.next().is_none());
 
-        let c = Coordinates::from_str("B:1").unwrap();
+        let c = Coords::from_str("B:1").unwrap();
         let mut i = c.iterator(Direction::Up);
-        assert_eq!(i.next().unwrap(), Coordinates::from_str("A:1").unwrap());
+        assert_eq!(i.next().unwrap(), Coords::from_str("A:1").unwrap());
         assert!(i.next().is_none());
 
-        let c = Coordinates::from_str("C:3").unwrap();
+        let c = Coords::from_str("C:3").unwrap();
         let mut i = c.iterator(Direction::Up);
-        assert_eq!(i.next().unwrap(), Coordinates::from_str("B:3").unwrap());
-        assert_eq!(i.next().unwrap(), Coordinates::from_str("A:3").unwrap());
+        assert_eq!(i.next().unwrap(), Coords::from_str("B:3").unwrap());
+        assert_eq!(i.next().unwrap(), Coords::from_str("A:3").unwrap());
         assert!(i.next().is_none());
     }
 
     #[test]
     fn coordinates_iterator_up_right() {
-        assert!(Coordinates::from_str("A:1")
+        assert!(Coords::from_str("A:1")
             .unwrap()
             .iterator(super::Direction::UpRight)
             .next()
             .is_none());
 
-        assert!(Coordinates::from_str("A:100")
+        assert!(Coords::from_str("A:100")
             .unwrap()
             .iterator(super::Direction::UpRight)
             .next()
             .is_none());
 
         assert_eq!(
-            Coordinates::from_str("B:1")
+            Coords::from_str("B:1")
                 .unwrap()
                 .iterator(super::Direction::UpRight)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("A:2").unwrap()
+            Coords::from_str("A:2").unwrap()
         );
 
         assert_eq!(
-            Coordinates::from_str("E:30")
+            Coords::from_str("E:30")
                 .unwrap()
                 .iterator(super::Direction::UpRight)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("D:31").unwrap()
+            Coords::from_str("D:31").unwrap()
         );
     }
 
     #[test]
     fn coordinates_iterator_right() {
         assert_eq!(
-            Coordinates::from_str("A:1")
+            Coords::from_str("A:1")
                 .unwrap()
                 .iterator(super::Direction::Right)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("A:2").unwrap()
+            Coords::from_str("A:2").unwrap()
         );
 
         assert_eq!(
-            Coordinates::from_str("B:100")
+            Coords::from_str("B:100")
                 .unwrap()
                 .iterator(super::Direction::Right)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("B:101").unwrap()
+            Coords::from_str("B:101").unwrap()
         );
     }
 
     #[test]
     fn coordinates_iterator_down_right() {
         assert_eq!(
-            Coordinates::from_str("A:1")
+            Coords::from_str("A:1")
                 .unwrap()
                 .iterator(super::Direction::DownRight)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("B:2").unwrap()
+            Coords::from_str("B:2").unwrap()
         );
 
         assert_eq!(
-            Coordinates::from_str("B:100")
+            Coords::from_str("B:100")
                 .unwrap()
                 .iterator(super::Direction::DownRight)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("C:101").unwrap()
+            Coords::from_str("C:101").unwrap()
         );
 
         assert_eq!(
-            Coordinates::from_str("AA:200")
+            Coords::from_str("AA:200")
                 .unwrap()
                 .iterator(super::Direction::DownRight)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("AB:201").unwrap()
+            Coords::from_str("AB:201").unwrap()
         );
     }
 
     #[test]
     fn coordinates_iterator_down() {
         assert_eq!(
-            Coordinates::from_str("A:1")
+            Coords::from_str("A:1")
                 .unwrap()
                 .iterator(super::Direction::Down)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("B:1").unwrap()
+            Coords::from_str("B:1").unwrap()
         );
 
         assert_eq!(
-            Coordinates::from_str("B:100")
+            Coords::from_str("B:100")
                 .unwrap()
                 .iterator(super::Direction::Down)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("C:100").unwrap()
+            Coords::from_str("C:100").unwrap()
         );
 
         assert_eq!(
-            Coordinates::from_str("AA:200")
+            Coords::from_str("AA:200")
                 .unwrap()
                 .iterator(super::Direction::Down)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("AB:200").unwrap()
+            Coords::from_str("AB:200").unwrap()
         );
     }
 
     #[test]
     fn coordinates_iterator_down_left() {
-        assert!(Coordinates::from_str("A:1")
+        assert!(Coords::from_str("A:1")
             .unwrap()
             .iterator(super::Direction::DownLeft)
             .next()
             .is_none());
 
         assert_eq!(
-            Coordinates::from_str("A:2")
+            Coords::from_str("A:2")
                 .unwrap()
                 .iterator(super::Direction::DownLeft)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("B:1").unwrap()
+            Coords::from_str("B:1").unwrap()
         );
         assert_eq!(
-            Coordinates::from_str("B:100")
+            Coords::from_str("B:100")
                 .unwrap()
                 .iterator(super::Direction::DownLeft)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("C:99").unwrap()
+            Coords::from_str("C:99").unwrap()
         );
 
         assert_eq!(
-            Coordinates::from_str("AA:200")
+            Coords::from_str("AA:200")
                 .unwrap()
                 .iterator(super::Direction::DownLeft)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("AB:199").unwrap()
+            Coords::from_str("AB:199").unwrap()
         );
     }
 
     #[test]
     fn coordinates_iterator_left() {
-        assert!(Coordinates::from_str("A:1")
+        assert!(Coords::from_str("A:1")
             .unwrap()
             .iterator(super::Direction::Left)
             .next()
             .is_none());
 
         assert_eq!(
-            Coordinates::from_str("A:2")
+            Coords::from_str("A:2")
                 .unwrap()
                 .iterator(super::Direction::Left)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("A:1").unwrap()
+            Coords::from_str("A:1").unwrap()
         );
         assert_eq!(
-            Coordinates::from_str("B:100")
+            Coords::from_str("B:100")
                 .unwrap()
                 .iterator(super::Direction::Left)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("B:99").unwrap()
+            Coords::from_str("B:99").unwrap()
         );
 
         assert_eq!(
-            Coordinates::from_str("AA:200")
+            Coords::from_str("AA:200")
                 .unwrap()
                 .iterator(super::Direction::Left)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("AA:199").unwrap()
+            Coords::from_str("AA:199").unwrap()
         );
     }
 
     #[test]
     fn coordinates_iterator_up_left() {
-        assert!(Coordinates::from_str("A:1")
+        assert!(Coords::from_str("A:1")
             .unwrap()
             .iterator(super::Direction::UpLeft)
             .next()
             .is_none());
 
-        assert!(Coordinates::from_str("B:1")
+        assert!(Coords::from_str("B:1")
             .unwrap()
             .iterator(super::Direction::UpLeft)
             .next()
             .is_none());
 
-        assert!(Coordinates::from_str("A:1")
+        assert!(Coords::from_str("A:1")
             .unwrap()
             .iterator(super::Direction::UpLeft)
             .next()
             .is_none());
 
         assert_eq!(
-            Coordinates::from_str("B:100")
+            Coords::from_str("B:100")
                 .unwrap()
                 .iterator(super::Direction::UpLeft)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("A:99").unwrap()
+            Coords::from_str("A:99").unwrap()
         );
 
         assert_eq!(
-            Coordinates::from_str("AA:200")
+            Coords::from_str("AA:200")
                 .unwrap()
                 .iterator(super::Direction::UpLeft)
                 .next()
                 .unwrap(),
-            Coordinates::from_str("Z:199").unwrap()
+            Coords::from_str("Z:199").unwrap()
         );
     }
 }
