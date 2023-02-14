@@ -6,44 +6,17 @@ use std::{
 };
 use thiserror::Error;
 
-use crate::walker::Walker;
+use crate::{
+    walker::{Walkable, Walker, WalkerIterator},
+    Dir,
+};
 
 pub type Coords = Coordinates;
-pub type Dir = Direction;
 
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum CoordinatesError {
     #[error("Invalid coordinates format: '{0}'")]
     ParseError(String),
-}
-
-#[derive(Debug, PartialEq, Clone, Copy, Eq)]
-pub enum Direction {
-    Up,
-    UpRight,
-    Right,
-    DownRight,
-    Down,
-    DownLeft,
-    Left,
-    UpLeft,
-}
-
-#[derive(Debug)]
-pub struct CoordinatesIterator<'c> {
-    coords: &'c Coords,
-    dir: Dir,
-    ix: usize,
-}
-
-impl<'c> Iterator for CoordinatesIterator<'c> {
-    type Item = Coords;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let next = self.coords.walker(self.dir).walk(self.ix);
-        self.ix += 1;
-        next
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,61 +29,68 @@ impl Coordinates {
     pub fn new(row: usize, col: usize) -> Self {
         Self { row, col }
     }
+}
 
-    pub fn iterator(&self, dir: Dir) -> CoordinatesIterator {
-        CoordinatesIterator {
-            coords: self,
-            dir,
-            ix: 1,
-        }
-    }
+impl Walkable for Coordinates {
+    type WItem = Coordinates;
+    type W = CoordinatesWalker;
 
-    pub fn walker(&self, dir: Dir) -> CoordinatesWalker {
-        CoordinatesWalker(self, dir)
+    fn walker(&self, dir: Dir) -> Self::W {
+        CoordinatesWalker(*self, dir)
     }
 }
 
-pub struct CoordinatesWalker<'w>(&'w Coordinates, Dir);
+pub struct CoordinatesWalker(Coordinates, Dir);
 
-impl<'w> Walker for CoordinatesWalker<'w> {
-    type Item = Coordinates;
+impl IntoIterator for CoordinatesWalker {
+    type Item = Coords;
 
-    fn walk(&self, length: usize) -> Option<Self::Item> {
+    type IntoIter = WalkerIterator<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        WalkerIterator::new(self.0, self.1)
+    }
+}
+
+impl Walker for CoordinatesWalker {
+    type WItem = Coordinates;
+
+    fn walk(&self, length: usize) -> Option<Self::WItem> {
         match self.1 {
-            Direction::Up => {
+            Dir::Up => {
                 if self.0.row >= length {
-                    Some(*self.0 - Coords::new(length, 0))
+                    Some(self.0 - Coords::new(length, 0))
                 } else {
                     None
                 }
             }
-            Direction::UpRight => {
+            Dir::UpRight => {
                 if self.0.row >= length {
-                    Some(*self.0 + Coordinates::new(0, length) - Coords::new(length, 0))
+                    Some(self.0 + Coordinates::new(0, length) - Coords::new(length, 0))
                 } else {
                     None
                 }
             }
-            Direction::Right => Some(*self.0 + Coords::new(0, length)),
-            Direction::DownRight => Some(*self.0 + Coords::new(length, length)),
-            Direction::Down => Some(*self.0 + Coords::new(length, 0)),
-            Direction::DownLeft => {
+            Dir::Right => Some(self.0 + Coords::new(0, length)),
+            Dir::DownRight => Some(self.0 + Coords::new(length, length)),
+            Dir::Down => Some(self.0 + Coords::new(length, 0)),
+            Dir::DownLeft => {
                 if self.0.col >= length {
-                    Some(*self.0 + Coords::new(length, 0) - Coords::new(0, length))
+                    Some(self.0 + Coords::new(length, 0) - Coords::new(0, length))
                 } else {
                     None
                 }
             }
-            Direction::Left => {
+            Dir::Left => {
                 if self.0.col >= length {
-                    Some(*self.0 - Coords::new(0, length))
+                    Some(self.0 - Coords::new(0, length))
                 } else {
                     None
                 }
             }
-            Direction::UpLeft => {
+            Dir::UpLeft => {
                 if self.0.col >= length && self.0.row >= length {
-                    Some(*self.0 - Coords::new(length, length))
+                    Some(self.0 - Coords::new(length, length))
                 } else {
                     None
                 }
@@ -289,14 +269,14 @@ mod tests {
     #[test]
     fn test_coordinates_iterator() {
         let c = Coords::from_str("A:1").unwrap();
-        let mut up = c.iterator(Dir::Up);
-        let mut up_right = c.iterator(Dir::UpRight);
-        let mut right = c.iterator(Dir::Right);
-        let mut down_right = c.iterator(Dir::DownRight);
-        let mut down = c.iterator(Dir::Down);
-        let mut down_left = c.iterator(Dir::DownLeft);
-        let mut left = c.iterator(Dir::Left);
-        let mut up_left = c.iterator(Dir::UpLeft);
+        let mut up = c.walker(Dir::Up).into_iter();
+        let mut up_right = c.walker(Dir::UpRight).into_iter();
+        let mut right = c.walker(Dir::Right).into_iter();
+        let mut down_right = c.walker(Dir::DownRight).into_iter();
+        let mut down = c.walker(Dir::Down).into_iter();
+        let mut down_left = c.walker(Dir::DownLeft).into_iter();
+        let mut left = c.walker(Dir::Left).into_iter();
+        let mut up_left = c.walker(Dir::UpLeft).into_iter();
 
         assert_eq!(up.next(), None);
         assert_eq!(up.next(), None);
@@ -324,14 +304,14 @@ mod tests {
         assert_eq!(up_left.next(), None);
 
         let c = Coords::from_str("D:4").unwrap();
-        let mut up = c.iterator(Dir::Up);
-        let mut up_right = c.iterator(Dir::UpRight);
-        let mut right = c.iterator(Dir::Right);
-        let mut down_right = c.iterator(Dir::DownRight);
-        let mut down = c.iterator(Dir::Down);
-        let mut down_left = c.iterator(Dir::DownLeft);
-        let mut left = c.iterator(Dir::Left);
-        let mut up_left = c.iterator(Dir::UpLeft);
+        let mut up = c.walker(Dir::Up).into_iter();
+        let mut up_right = c.walker(Dir::UpRight).into_iter();
+        let mut right = c.walker(Dir::Right).into_iter();
+        let mut down_right = c.walker(Dir::DownRight).into_iter();
+        let mut down = c.walker(Dir::Down).into_iter();
+        let mut down_left = c.walker(Dir::DownLeft).into_iter();
+        let mut left = c.walker(Dir::Left).into_iter();
+        let mut up_left = c.walker(Dir::UpLeft).into_iter();
 
         assert_eq!(up.next(), Some(Coords::from_str("C:4").unwrap()));
         assert_eq!(up.next(), Some(Coords::from_str("B:4").unwrap()));
