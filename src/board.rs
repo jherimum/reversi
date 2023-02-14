@@ -1,45 +1,28 @@
+use crate::{coordinates::Coords, piece::Piece, position::Position, Wrap};
 use std::{
     cell::RefCell,
     fmt::{Debug, Display},
     rc::Rc,
 };
 
-use crate::{
-    coordinates::{Coords, Dir},
-    Wrap,
-};
-
 pub type DataPointer = Rc<RefCell<Vec<Vec<char>>>>;
 
-pub struct PositionIterator {
-    dir: Dir,
-    coords: Coords,
-    data: DataPointer,
-}
-
-impl Iterator for PositionIterator {
-    type Item = Position;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.dir {
-            Dir::Up => todo!(),
-            Dir::UpRight => todo!(),
-            Dir::Right => todo!(),
-            Dir::DownRight => todo!(),
-            Dir::Down => todo!(),
-            Dir::DownLeft => todo!(),
-            Dir::Left => todo!(),
-            Dir::UpLeft => todo!(),
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum BoardError {
+    #[error("data store disconnected")]
     ParseError,
+
+    #[error("invalid position")]
     InvalidPosition,
+
+    #[error("positiin occupied")]
     PositionAlreadyOccupied,
+
+    #[error("position not occupied")]
     PositionNotOcuppiedError,
+
+    #[error("Invalid board size")]
+    InvalidBoardSize,
 }
 
 #[derive(Debug)]
@@ -50,39 +33,46 @@ pub struct Board {
 
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // for (_, e) in self.positions.iter().enumerate() {
-        //     for (_, e) in e.iter().enumerate() {
-        //         write!(f, "[{}]", e);
-        //     }
-        //     writeln!(f, "");
-        // }
+        for (_, e) in self.data.borrow().iter().enumerate() {
+            for (_, e) in e.iter().enumerate() {
+                write!(f, "[{}]", e)?;
+            }
+            writeln!(f, "")?;
+        }
+        Ok(())
+    }
+}
 
-        // Ok(())
-        todo!()
+impl From<Option<Piece>> for Wrap<Option<Piece>> {
+    fn from(value: Option<Piece>) -> Self {
+        Wrap(value)
     }
 }
 
 impl Board {
-    pub fn get(&self, coords: &Coords) -> Result<Position, BoardError> {
-        if self.size > coords.row && self.size > coords.col {
-            return Ok(Position::new(self.data.clone(), coords.clone()));
-        }
-        Err(BoardError::InvalidPosition)
-    }
-
     pub fn new(size: usize) -> Result<Board, BoardError> {
+        if size <= 4 || (1 == size % 2) {
+            return Err(BoardError::InvalidBoardSize);
+        }
+
         let positions: Vec<Vec<char>> = (0..size)
-            .map(|r| {
+            .map(|row| {
                 let x: Vec<char> = (0..size)
-                    .map(|c| {
+                    .map(|col| {
                         let half = size / 2;
-                        if (r == half && c == half) || (r == half - 1 && c == half - 1) {
-                            Wrap(Some(Piece::Blue)).try_into().unwrap()
-                        } else if (r == half && c == half - 1) || (r == half - 1 && c == half) {
-                            Wrap(Some(Piece::Red)).try_into().unwrap()
-                        } else {
-                            Wrap(None).try_into().unwrap()
-                        }
+                        Wrap(
+                            if (row == half && col == half) || (row == half - 1 && col == half - 1)
+                            {
+                                Some(Piece::Blue)
+                            } else if (row == half && col == half - 1)
+                                || (row == half - 1 && col == half)
+                            {
+                                Some(Piece::Red)
+                            } else {
+                                None
+                            },
+                        )
+                        .into()
                     })
                     .collect::<Vec<char>>()
                     .try_into()
@@ -96,107 +86,20 @@ impl Board {
             data: Rc::new(RefCell::new(positions)),
         })
     }
-}
 
-pub struct Position {
-    data: DataPointer,
-    coords: Coords,
-}
-
-impl Debug for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Position")
-            .field("piece", &self.piece())
-            .field("coords", &self.coords)
-            .finish()
-    }
-}
-
-impl Display for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
-
-impl Position {
-    pub fn new(data: DataPointer, coords: Coords) -> Self {
-        Position { data, coords }
-    }
-
-    fn stream(&self, dir: Dir) -> PositionIterator {
-        PositionIterator {
-            dir,
-            coords: self.coords,
-            data: self.data.clone(),
+    pub fn get(&self, coords: &Coords) -> Result<Position, BoardError> {
+        if self.size > coords.row && self.size > coords.col {
+            return Ok(Position::new(self.data.clone(), coords.clone()));
         }
-    }
-
-    fn piece(&self) -> Result<Option<Piece>, BoardError> {
-        let x = self.data.borrow_mut()[self.coords.row][self.coords.col];
-        let x: Result<Wrap<Option<Piece>>, BoardError> = x.try_into();
-        x.map(|w| w.0)
-    }
-
-    fn place(self, piece: Piece) -> Result<Position, BoardError> {
-        if self.occupied()? {
-            return Err(BoardError::PositionAlreadyOccupied);
-        }
-
-        self.data.borrow_mut()[self.coords.row][self.coords.col] = piece.into();
-
-        Ok(self)
-    }
-
-    fn flip(self) -> Result<Self, BoardError> {
-        match self.piece() {
-            Ok(p) => match p {
-                Some(p) => {
-                    self.data.borrow_mut()[self.coords.row][self.coords.col] = p.flip().into();
-                    Ok(self)
-                }
-                None => Err(BoardError::PositionNotOcuppiedError),
-            },
-            Err(e) => Err(e),
-        }
-    }
-
-    fn occupied(&self) -> Result<bool, BoardError> {
-        self.piece().map(|o| o.is_some())
+        Err(BoardError::InvalidPosition)
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Piece {
-    Blue,
-    Red,
-}
-
-impl Piece {
-    pub fn flip(&self) -> Self {
-        match self {
-            Piece::Blue => Piece::Red,
-            Piece::Red => Piece::Blue,
-        }
-    }
-}
-
-impl Into<char> for Piece {
+impl Into<char> for Wrap<Option<Piece>> {
     fn into(self) -> char {
         match self {
-            Piece::Blue => 'B',
-            Piece::Red => 'R',
-        }
-    }
-}
-
-impl TryInto<char> for Wrap<Option<Piece>> {
-    type Error = BoardError;
-
-    fn try_into(self) -> Result<char, Self::Error> {
-        match self {
-            Wrap(None) => Ok(' '),
-            Wrap(Some(Piece::Blue)) => Ok('B'),
-            Wrap(Some(Piece::Red)) => Ok('R'),
+            Wrap(None) => ' ',
+            Wrap(Some(p)) => p.into(),
         }
     }
 }
@@ -217,24 +120,38 @@ impl TryFrom<char> for Wrap<Option<Piece>> {
 #[cfg(test)]
 mod tests {
 
-    use std::str::FromStr;
+    use std::ops::Deref;
 
     use super::*;
 
     #[test]
-    fn test_flip() {
-        assert_eq!(Piece::Blue.flip(), Piece::Red);
-        assert_eq!(Piece::Red.flip(), Piece::Blue);
+    fn test_valid_board_size() {
+        assert!(Board::new(16).is_ok());
+        assert!(Board::new(8).is_ok());
+        assert!(Board::new(6).is_ok());
+        assert!(Board::new(4).is_err());
+        assert!(Board::new(13).is_err());
     }
 
     #[test]
-    fn test1() {
-        let b = Board::new(8).unwrap();
-        let c = Coords::from_str("A:1").unwrap();
-        let p = b.get(&c).unwrap().place(Piece::Blue).unwrap();
-        dbg!(p);
+    fn test_board_initial_setup() {
+        let b = Board::new(6).unwrap();
+        let data = b.data.borrow();
+        let data = data.deref();
 
-        let p1 = b.get(&c).unwrap().flip().unwrap();
-        dbg!(p1);
+        let x = data
+            .iter()
+            .enumerate()
+            .map(|(r, e)| e.iter().enumerate().map(move |(col, e)| (r, col, e)))
+            .flatten()
+            .for_each(|(r, c, v)| match (r, c) {
+                (2, 2) => assert_eq!(*v, 'B'),
+                (3, 3) => assert_eq!(*v, 'B'),
+                (2, 3) => assert_eq!(*v, 'R'),
+                (3, 2) => assert_eq!(*v, 'R'),
+                _ => assert_eq!(*v, ' '),
+            });
+
+        dbg!(x);
     }
 }

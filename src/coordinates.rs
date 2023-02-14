@@ -266,247 +266,75 @@ mod tests {
     }
 
     #[test]
-    fn coordinates_iterator_up() {
+    fn test_coordinates_iterator() {
         let c = Coords::from_str("A:1").unwrap();
-        let mut i = c.iterator(Dir::Up);
-        assert!(i.next().is_none());
+        let mut up = c.iterator(Dir::Up);
+        let mut up_right = c.iterator(Dir::UpRight);
+        let mut right = c.iterator(Dir::Right);
+        let mut down_right = c.iterator(Dir::DownRight);
+        let mut down = c.iterator(Dir::Down);
+        let mut down_left = c.iterator(Dir::DownLeft);
+        let mut left = c.iterator(Dir::Left);
+        let mut up_left = c.iterator(Dir::UpLeft);
 
-        let c = Coords::from_str("A:2").unwrap();
-        let mut i = c.iterator(Dir::Up);
-        assert!(i.next().is_none());
+        assert_eq!(up.next(), None);
+        assert_eq!(up.next(), None);
 
-        let c = Coords::from_str("B:1").unwrap();
-        let mut i = c.iterator(Dir::Up);
-        assert_eq!(i.next().unwrap(), Coords::from_str("A:1").unwrap());
-        assert!(i.next().is_none());
+        assert_eq!(up_right.next(), None);
+        assert_eq!(up_right.next(), None);
 
-        let c = Coords::from_str("C:3").unwrap();
-        let mut i = c.iterator(Dir::Up);
-        assert_eq!(i.next().unwrap(), Coords::from_str("B:3").unwrap());
-        assert_eq!(i.next().unwrap(), Coords::from_str("A:3").unwrap());
-        assert!(i.next().is_none());
-    }
+        assert_eq!(right.next(), Some(Coords::from_str("A:2").unwrap()));
+        assert_eq!(right.next(), Some(Coords::from_str("A:3").unwrap()));
+        assert_eq!(right.next(), Some(Coords::from_str("A:4").unwrap()));
 
-    #[test]
-    fn coordinates_iterator_up_right() {
-        assert!(Coords::from_str("A:1")
-            .unwrap()
-            .iterator(super::Dir::UpRight)
-            .next()
-            .is_none());
+        assert_eq!(down_right.next(), Some(Coords::from_str("B:2").unwrap()));
+        assert_eq!(down_right.next(), Some(Coords::from_str("C:3").unwrap()));
 
-        assert!(Coords::from_str("A:100")
-            .unwrap()
-            .iterator(super::Dir::UpRight)
-            .next()
-            .is_none());
+        assert_eq!(down.next(), Some(Coords::from_str("B:1").unwrap()));
+        assert_eq!(down.next(), Some(Coords::from_str("C:1").unwrap()));
 
-        assert_eq!(
-            Coords::from_str("B:1")
-                .unwrap()
-                .iterator(super::Dir::UpRight)
-                .next()
-                .unwrap(),
-            Coords::from_str("A:2").unwrap()
-        );
+        assert_eq!(down_left.next(), None);
+        assert_eq!(down_left.next(), None);
 
-        assert_eq!(
-            Coords::from_str("E:30")
-                .unwrap()
-                .iterator(super::Dir::UpRight)
-                .next()
-                .unwrap(),
-            Coords::from_str("D:31").unwrap()
-        );
-    }
+        assert_eq!(left.next(), None);
+        assert_eq!(left.next(), None);
 
-    #[test]
-    fn coordinates_iterator_right() {
-        assert_eq!(
-            Coords::from_str("A:1")
-                .unwrap()
-                .iterator(super::Dir::Right)
-                .next()
-                .unwrap(),
-            Coords::from_str("A:2").unwrap()
-        );
+        assert_eq!(up_left.next(), None);
+        assert_eq!(up_left.next(), None);
 
-        assert_eq!(
-            Coords::from_str("B:100")
-                .unwrap()
-                .iterator(super::Dir::Right)
-                .next()
-                .unwrap(),
-            Coords::from_str("B:101").unwrap()
-        );
-    }
+        let c = Coords::from_str("D:4").unwrap();
+        let mut up = c.iterator(Dir::Up);
+        let mut up_right = c.iterator(Dir::UpRight);
+        let mut right = c.iterator(Dir::Right);
+        let mut down_right = c.iterator(Dir::DownRight);
+        let mut down = c.iterator(Dir::Down);
+        let mut down_left = c.iterator(Dir::DownLeft);
+        let mut left = c.iterator(Dir::Left);
+        let mut up_left = c.iterator(Dir::UpLeft);
 
-    #[test]
-    fn coordinates_iterator_down_right() {
-        assert_eq!(
-            Coords::from_str("A:1")
-                .unwrap()
-                .iterator(super::Dir::DownRight)
-                .next()
-                .unwrap(),
-            Coords::from_str("B:2").unwrap()
-        );
+        assert_eq!(up.next(), Some(Coords::from_str("C:4").unwrap()));
+        assert_eq!(up.next(), Some(Coords::from_str("B:4").unwrap()));
 
-        assert_eq!(
-            Coords::from_str("B:100")
-                .unwrap()
-                .iterator(super::Dir::DownRight)
-                .next()
-                .unwrap(),
-            Coords::from_str("C:101").unwrap()
-        );
+        assert_eq!(up_right.next(), Some(Coords::from_str("C:5").unwrap()));
+        assert_eq!(up_right.next(), Some(Coords::from_str("B:6").unwrap()));
 
-        assert_eq!(
-            Coords::from_str("AA:200")
-                .unwrap()
-                .iterator(super::Dir::DownRight)
-                .next()
-                .unwrap(),
-            Coords::from_str("AB:201").unwrap()
-        );
-    }
+        assert_eq!(right.next(), Some(Coords::from_str("D:5").unwrap()));
+        assert_eq!(right.next(), Some(Coords::from_str("D:6").unwrap()));
+        assert_eq!(right.next(), Some(Coords::from_str("D:7").unwrap()));
 
-    #[test]
-    fn coordinates_iterator_down() {
-        assert_eq!(
-            Coords::from_str("A:1")
-                .unwrap()
-                .iterator(super::Dir::Down)
-                .next()
-                .unwrap(),
-            Coords::from_str("B:1").unwrap()
-        );
+        assert_eq!(down_right.next(), Some(Coords::from_str("E:5").unwrap()));
+        assert_eq!(down_right.next(), Some(Coords::from_str("F:6").unwrap()));
 
-        assert_eq!(
-            Coords::from_str("B:100")
-                .unwrap()
-                .iterator(super::Dir::Down)
-                .next()
-                .unwrap(),
-            Coords::from_str("C:100").unwrap()
-        );
+        assert_eq!(down.next(), Some(Coords::from_str("E:4").unwrap()));
+        assert_eq!(down.next(), Some(Coords::from_str("F:4").unwrap()));
 
-        assert_eq!(
-            Coords::from_str("AA:200")
-                .unwrap()
-                .iterator(super::Dir::Down)
-                .next()
-                .unwrap(),
-            Coords::from_str("AB:200").unwrap()
-        );
-    }
+        assert_eq!(down_left.next(), Some(Coords::from_str("E:3").unwrap()));
+        assert_eq!(down_left.next(), Some(Coords::from_str("F:2").unwrap()));
 
-    #[test]
-    fn coordinates_iterator_down_left() {
-        assert!(Coords::from_str("A:1")
-            .unwrap()
-            .iterator(super::Dir::DownLeft)
-            .next()
-            .is_none());
+        assert_eq!(left.next(), Some(Coords::from_str("D:3").unwrap()));
+        assert_eq!(left.next(), Some(Coords::from_str("D:2").unwrap()));
 
-        assert_eq!(
-            Coords::from_str("A:2")
-                .unwrap()
-                .iterator(super::Dir::DownLeft)
-                .next()
-                .unwrap(),
-            Coords::from_str("B:1").unwrap()
-        );
-        assert_eq!(
-            Coords::from_str("B:100")
-                .unwrap()
-                .iterator(super::Dir::DownLeft)
-                .next()
-                .unwrap(),
-            Coords::from_str("C:99").unwrap()
-        );
-
-        assert_eq!(
-            Coords::from_str("AA:200")
-                .unwrap()
-                .iterator(super::Dir::DownLeft)
-                .next()
-                .unwrap(),
-            Coords::from_str("AB:199").unwrap()
-        );
-    }
-
-    #[test]
-    fn coordinates_iterator_left() {
-        assert!(Coords::from_str("A:1")
-            .unwrap()
-            .iterator(super::Dir::Left)
-            .next()
-            .is_none());
-
-        assert_eq!(
-            Coords::from_str("A:2")
-                .unwrap()
-                .iterator(super::Dir::Left)
-                .next()
-                .unwrap(),
-            Coords::from_str("A:1").unwrap()
-        );
-        assert_eq!(
-            Coords::from_str("B:100")
-                .unwrap()
-                .iterator(super::Dir::Left)
-                .next()
-                .unwrap(),
-            Coords::from_str("B:99").unwrap()
-        );
-
-        assert_eq!(
-            Coords::from_str("AA:200")
-                .unwrap()
-                .iterator(super::Dir::Left)
-                .next()
-                .unwrap(),
-            Coords::from_str("AA:199").unwrap()
-        );
-    }
-
-    #[test]
-    fn coordinates_iterator_up_left() {
-        assert!(Coords::from_str("A:1")
-            .unwrap()
-            .iterator(super::Dir::UpLeft)
-            .next()
-            .is_none());
-
-        assert!(Coords::from_str("B:1")
-            .unwrap()
-            .iterator(super::Dir::UpLeft)
-            .next()
-            .is_none());
-
-        assert!(Coords::from_str("A:1")
-            .unwrap()
-            .iterator(super::Dir::UpLeft)
-            .next()
-            .is_none());
-
-        assert_eq!(
-            Coords::from_str("B:100")
-                .unwrap()
-                .iterator(super::Dir::UpLeft)
-                .next()
-                .unwrap(),
-            Coords::from_str("A:99").unwrap()
-        );
-
-        assert_eq!(
-            Coords::from_str("AA:200")
-                .unwrap()
-                .iterator(super::Dir::UpLeft)
-                .next()
-                .unwrap(),
-            Coords::from_str("Z:199").unwrap()
-        );
+        assert_eq!(up_left.next(), Some(Coords::from_str("C:3").unwrap()));
+        assert_eq!(up_left.next(), Some(Coords::from_str("B:2").unwrap()));
     }
 }
