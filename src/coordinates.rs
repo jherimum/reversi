@@ -1,6 +1,12 @@
 use regex::Regex;
-use std::{fmt::Display, str::FromStr};
+use std::{
+    fmt::Display,
+    ops::{Add, Sub},
+    str::FromStr,
+};
 use thiserror::Error;
+
+use crate::walker::Walker;
 
 pub type Coords = Coordinates;
 pub type Dir = Direction;
@@ -11,7 +17,7 @@ pub enum CoordinatesError {
     ParseError(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq)]
 pub enum Direction {
     Up,
     UpRight,
@@ -34,67 +40,9 @@ impl<'c> Iterator for CoordinatesIterator<'c> {
     type Item = Coords;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let x = match self.dir {
-            Dir::Up => {
-                if self.coords.row >= self.ix {
-                    Some(Coords {
-                        row: self.coords.row - self.ix,
-                        col: self.coords.col,
-                    })
-                } else {
-                    None
-                }
-            }
-            Dir::UpRight => {
-                if self.coords.row >= self.ix {
-                    Some(Coords::new(
-                        self.coords.row - self.ix,
-                        self.coords.col + self.ix,
-                    ))
-                } else {
-                    None
-                }
-            }
-
-            Dir::Right => Some(Coords::new(self.coords.row, self.coords.col + self.ix)),
-
-            Dir::DownRight => Some(Coords::new(
-                self.coords.row + self.ix,
-                self.coords.col + self.ix,
-            )),
-
-            Dir::Down => Some(Coords::new(self.coords.row + self.ix, self.coords.col)),
-
-            Dir::DownLeft => {
-                if self.coords.col >= self.ix {
-                    Some(Coords::new(
-                        self.coords.row + self.ix,
-                        self.coords.col - self.ix,
-                    ))
-                } else {
-                    None
-                }
-            }
-            Dir::Left => {
-                if self.coords.col >= self.ix {
-                    Some(Coords::new(self.coords.row, self.coords.col - self.ix))
-                } else {
-                    None
-                }
-            }
-            Dir::UpLeft => {
-                if self.coords.col >= self.ix && self.coords.row >= self.ix {
-                    Some(Coords::new(
-                        self.coords.row - self.ix,
-                        self.coords.col - self.ix,
-                    ))
-                } else {
-                    None
-                }
-            }
-        };
+        let next = self.coords.walker(self.dir).walk(self.ix);
         self.ix = self.ix + 1;
-        x
+        next
     }
 }
 
@@ -116,11 +64,80 @@ impl Coordinates {
             ix: 1,
         }
     }
+
+    pub fn walker(&self, dir: Dir) -> CoordinatesWalker {
+        CoordinatesWalker(self, dir)
+    }
+}
+
+pub struct CoordinatesWalker<'w>(&'w Coordinates, Dir);
+
+impl<'w> Walker for CoordinatesWalker<'w> {
+    type Item = Coordinates;
+
+    fn walk(&self, length: usize) -> Option<Self::Item> {
+        match self.1 {
+            Direction::Up => {
+                if self.0.row >= length {
+                    Some(*self.0 - Coords::new(length, 0))
+                } else {
+                    None
+                }
+            }
+            Direction::UpRight => {
+                if self.0.row >= length {
+                    Some(*self.0 + Coordinates::new(0, length) - Coords::new(length, 0))
+                } else {
+                    None
+                }
+            }
+            Direction::Right => Some(*self.0 + Coords::new(0, length)),
+            Direction::DownRight => Some(*self.0 + Coords::new(length, length)),
+            Direction::Down => Some(*self.0 + Coords::new(length, 0)),
+            Direction::DownLeft => {
+                if self.0.col >= length {
+                    Some(*self.0 + Coords::new(length, 0) - Coords::new(0, length))
+                } else {
+                    None
+                }
+            }
+            Direction::Left => {
+                if self.0.col >= length {
+                    Some(*self.0 - Coords::new(0, length))
+                } else {
+                    None
+                }
+            }
+            Direction::UpLeft => {
+                if self.0.col >= length && self.0.col >= length {
+                    Some(*self.0 - Coords::new(length, length))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl Add for Coords {
+    type Output = Coords;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Coords::new(self.row + rhs.row, self.col + rhs.col)
+    }
+}
+
+impl Sub for Coords {
+    type Output = Coords;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Coords::new(self.row - rhs.row, self.col - rhs.col)
+    }
 }
 
 impl Display for Coordinates {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", RowIdentifier::to_str(self.row), self.col + 1)
+        write!(f, "{}:{}", RowNumber(self.row).to_string(), self.col + 1)
     }
 }
 
@@ -147,7 +164,7 @@ impl FromStr for Coordinates {
             .parse()
             .expect("Failed to parse col. a number was expected");
 
-        let row = RowIdentifier::parse(
+        let row = RowNumber::from_str(
             captures
                 .name("row")
                 .expect("a capture with name row was expected")
@@ -155,34 +172,44 @@ impl FromStr for Coordinates {
         )?;
 
         Ok(Coords {
-            row: row,
+            row: row.into(),
             col: col - 1,
         })
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct RowIdentifier;
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub struct RowNumber(usize);
 
-impl RowIdentifier {
-    fn parse(str: &str) -> Result<usize, CoordinatesError> {
+impl Into<usize> for RowNumber {
+    fn into(self) -> usize {
+        self.0
+    }
+}
+
+impl FromStr for RowNumber {
+    type Err = CoordinatesError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let valid_regex = Regex::new(r"\A([A-Z]|[a-z])+\z").expect("regex error");
-        if !valid_regex.is_match(str) {
-            return Err(CoordinatesError::ParseError(str.to_string()));
+        if !valid_regex.is_match(s) {
+            return Err(CoordinatesError::ParseError(s.to_string()));
         }
 
         let mut res: usize = 0;
-        for c in str.chars() {
+        for c in s.chars() {
             res = res * 26;
             res = res + ((c.to_ascii_uppercase() as u8) - ('A' as u8) + 1) as usize;
         }
 
-        Ok(res - 1)
+        Ok(RowNumber(res - 1))
     }
+}
 
-    fn to_str(row: usize) -> String {
+impl Display for RowNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut id = String::new();
-        let mut temp_row = row + 1;
+        let mut temp_row = self.0 + 1;
 
         while temp_row > 0 {
             let letter = (temp_row - 1) % 26;
@@ -190,7 +217,7 @@ impl RowIdentifier {
             temp_row = (temp_row - 1) / 26;
         }
 
-        id.chars().rev().collect::<String>()
+        write!(f, "{}", id.chars().rev().collect::<String>())
     }
 }
 
@@ -208,7 +235,7 @@ mod tests {
     #[case("Z", 25)]
     #[case("AA", 26)]
     fn test_row_identifier_parse(#[case] input: &str, #[case] output: usize) {
-        assert_eq!(RowIdentifier::parse(input).unwrap(), output)
+        assert_eq!(RowNumber::from_str(input).unwrap(), RowNumber(output))
     }
 
     #[rstest]
@@ -217,18 +244,18 @@ mod tests {
     #[case("Z", 25)]
     #[case("AA", 26)]
     fn test_row_identifier_to_str(#[case] output: &str, #[case] input: usize) {
-        assert_eq!(RowIdentifier::to_str(input), output)
+        assert_eq!(RowNumber(input).to_string(), output)
     }
 
     #[rstest]
     fn test_invalid_row_identifier_parse() {
         assert_eq!(
-            RowIdentifier::parse("1").unwrap_err(),
+            RowNumber::from_str("1").unwrap_err(),
             CoordinatesError::ParseError("1".to_string())
         );
 
         assert_eq!(
-            RowIdentifier::parse(" / ").unwrap_err(),
+            RowNumber::from_str(" / ").unwrap_err(),
             CoordinatesError::ParseError(" / ".to_string())
         );
     }
