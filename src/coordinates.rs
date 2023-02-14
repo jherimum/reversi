@@ -2,12 +2,15 @@ use regex::Regex;
 use std::{fmt::Display, str::FromStr};
 use thiserror::Error;
 
+type Coord = Coordinates;
+
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum CoordinatesError {
     #[error("Invalid coordinates format: '{0}'")]
     ParseError(String),
 }
 
+#[derive(Debug)]
 pub enum Direction {
     Up,
     UpRight,
@@ -19,42 +22,87 @@ pub enum Direction {
     UpLeft,
 }
 
-pub struct CoordinatesIterator<'c>(&'c Coordinates, Direction);
+#[derive(Debug)]
+pub struct CoordinatesIterator<'c> {
+    coordinates: &'c Coordinates,
+    direction: Direction,
+    ix: usize,
+}
 
 impl<'c> Iterator for CoordinatesIterator<'c> {
-    type Item = Coordinates;
+    type Item = Coord;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.1 {
-            Direction::Up => match (self.0.row, self.0.col) {
-                (0, _) => None,
-                (r, c) => Some(Coordinates { row: r - 1, col: c }),
-            },
-            Direction::UpRight => match (self.0.row, self.0.col) {
-                (0, _) => None,
-                (r, c) => Some(Coordinates::new(r - 1, c + 1)),
-            },
+        let x = match self.direction {
+            Direction::Up => {
+                if self.coordinates.row >= self.ix {
+                    Some(Coord {
+                        row: self.coordinates.row - self.ix,
+                        col: self.coordinates.col,
+                    })
+                } else {
+                    None
+                }
+            }
+            Direction::UpRight => {
+                if self.coordinates.row >= self.ix {
+                    Some(Coord::new(
+                        self.coordinates.row - self.ix,
+                        self.coordinates.col + self.ix,
+                    ))
+                } else {
+                    None
+                }
+            }
 
-            Direction::Right => Some(Coordinates::new(self.0.row, self.0.col + 1)),
+            Direction::Right => Some(Coord::new(
+                self.coordinates.row,
+                self.coordinates.col + self.ix,
+            )),
 
-            Direction::DownRight => Some(Coordinates::new(self.0.row + 1, self.0.col + 1)),
+            Direction::DownRight => Some(Coord::new(
+                self.coordinates.row + self.ix,
+                self.coordinates.col + self.ix,
+            )),
 
-            Direction::Down => Some(Coordinates::new(self.0.row + 1, self.0.col)),
+            Direction::Down => Some(Coord::new(
+                self.coordinates.row + self.ix,
+                self.coordinates.col,
+            )),
 
-            Direction::DownLeft => match (self.0.row, self.0.col) {
-                (_, 0) => None,
-                (r, c) => Some(Coordinates::new(r + 1, c - 1)),
-            },
-            Direction::Left => match (self.0.row, self.0.col) {
-                (_, 0) => None,
-                (r, c) => Some(Coordinates::new(r, c - 1)),
-            },
-            Direction::UpLeft => match (self.0.row, self.0.col) {
-                (0, _) => None,
-                (_, 0) => None,
-                (r, c) => Some(Coordinates::new(r - 1, c - 1)),
-            },
-        }
+            Direction::DownLeft => {
+                if self.coordinates.col >= self.ix {
+                    Some(Coord::new(
+                        self.coordinates.row + self.ix,
+                        self.coordinates.col - self.ix,
+                    ))
+                } else {
+                    None
+                }
+            }
+            Direction::Left => {
+                if self.coordinates.col >= self.ix {
+                    Some(Coord::new(
+                        self.coordinates.row,
+                        self.coordinates.col - self.ix,
+                    ))
+                } else {
+                    None
+                }
+            }
+            Direction::UpLeft => {
+                if self.coordinates.col >= self.ix && self.coordinates.row >= self.ix {
+                    Some(Coord::new(
+                        self.coordinates.row - self.ix,
+                        self.coordinates.col - self.ix,
+                    ))
+                } else {
+                    None
+                }
+            }
+        };
+        self.ix = self.ix + 1;
+        x
     }
 }
 
@@ -70,13 +118,17 @@ impl Coordinates {
     }
 
     pub fn iterator(&self, direction: Direction) -> CoordinatesIterator {
-        CoordinatesIterator(self, direction)
+        CoordinatesIterator {
+            coordinates: self,
+            direction,
+            ix: 1,
+        }
     }
 }
 
 impl Display for Coordinates {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", RowIdentifier(self.row), self.col + 1)
+        write!(f, "{}:{}", RowIdentifier::to_str(self.row), self.col + 1)
     }
 }
 
@@ -103,13 +155,12 @@ impl FromStr for Coordinates {
             .parse()
             .expect("Failed to parse col. a number was expected");
 
-        let row = RowIdentifier::from_str(
+        let row = RowIdentifier::parse(
             captures
                 .name("row")
                 .expect("a capture with name row was expected")
                 .as_str(),
-        )?
-        .0;
+        )?;
 
         Ok(Coordinates {
             row: row,
@@ -119,12 +170,27 @@ impl FromStr for Coordinates {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct RowIdentifier(usize);
+struct RowIdentifier;
 
-impl Display for RowIdentifier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl RowIdentifier {
+    fn parse(str: &str) -> Result<usize, CoordinatesError> {
+        let valid_regex = Regex::new(r"\A([A-Z]|[a-z])+\z").expect("regex error");
+        if !valid_regex.is_match(str) {
+            return Err(CoordinatesError::ParseError(str.to_string()));
+        }
+
+        let mut res: usize = 0;
+        for c in str.chars() {
+            res = res * 26;
+            res = res + ((c.to_ascii_uppercase() as u8) - ('A' as u8) + 1) as usize;
+        }
+
+        Ok(res - 1)
+    }
+
+    fn to_str(row: usize) -> String {
         let mut id = String::new();
-        let mut temp_row = self.0 + 1;
+        let mut temp_row = row + 1;
 
         while temp_row > 0 {
             let letter = (temp_row - 1) % 26;
@@ -132,26 +198,7 @@ impl Display for RowIdentifier {
             temp_row = (temp_row - 1) / 26;
         }
 
-        write!(f, "{}", id.chars().rev().collect::<String>())
-    }
-}
-
-impl FromStr for RowIdentifier {
-    type Err = CoordinatesError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let valid_regex = Regex::new(r"\A([A-Z]|[a-z])+\z").expect("regex error");
-        if !valid_regex.is_match(s) {
-            return Err(CoordinatesError::ParseError(s.to_string()));
-        }
-
-        let mut res: usize = 0;
-        for c in s.chars() {
-            res = res * 26;
-            res = res + ((c.to_ascii_uppercase() as u8) - ('A' as u8) + 1) as usize;
-        }
-
-        Ok(RowIdentifier(res - 1))
+        id.chars().rev().collect::<String>()
     }
 }
 
@@ -159,87 +206,93 @@ impl FromStr for RowIdentifier {
 mod tests {
     use std::str::FromStr;
 
-    use crate::coordinates::{CoordinatesError, RowIdentifier};
+    use super::*;
 
-    use super::Coordinates;
+    use rstest::*;
 
-    #[test]
-    fn test_row_identifier_display() {
-        assert_eq!(RowIdentifier(0).to_string(), String::from("A"));
-        assert_eq!(RowIdentifier(1).to_string(), String::from("B"));
-        assert_eq!(RowIdentifier(25).to_string(), String::from("Z"));
-        assert_eq!(RowIdentifier(26).to_string(), String::from("AA"));
-        assert_eq!(RowIdentifier(27).to_string(), String::from("AB"));
-        assert_eq!(RowIdentifier(28).to_string(), String::from("AC"));
-        assert_eq!(RowIdentifier(30).to_string(), String::from("AE"));
-        assert_eq!(RowIdentifier(40).to_string(), String::from("AO"));
-        assert_eq!(RowIdentifier(45).to_string(), String::from("AT"));
-        assert_eq!(RowIdentifier(46).to_string(), String::from("AU"));
-        assert_eq!(RowIdentifier(47).to_string(), String::from("AV"));
-        assert_eq!(RowIdentifier(48).to_string(), String::from("AW"));
-        assert_eq!(RowIdentifier(49).to_string(), String::from("AX"));
-        assert_eq!(RowIdentifier(50).to_string(), String::from("AY"));
-        assert_eq!(RowIdentifier(51).to_string(), String::from("AZ"));
-        assert_eq!(RowIdentifier(52).to_string(), String::from("BA"));
+    #[rstest]
+    #[case("A", 0)]
+    #[case("B", 1)]
+    #[case("Z", 25)]
+    #[case("AA", 26)]
+    fn test_row_identifier_parse(#[case] input: &str, #[case] output: usize) {
+        assert_eq!(RowIdentifier::parse(input).unwrap(), output)
     }
 
-    #[test]
-    fn test_row_identifier_from_str() {
-        assert_eq!(RowIdentifier::from_str("a").unwrap(), RowIdentifier(0));
-        assert_eq!(RowIdentifier::from_str("B").unwrap(), RowIdentifier(1));
-        assert_eq!(RowIdentifier::from_str("C").unwrap(), RowIdentifier(2));
-        assert_eq!(RowIdentifier::from_str("Z").unwrap(), RowIdentifier(25));
-        assert_eq!(RowIdentifier::from_str("AA").unwrap(), RowIdentifier(26));
+    #[rstest]
+    #[case("A", 0)]
+    #[case("B", 1)]
+    #[case("Z", 25)]
+    #[case("AA", 26)]
+    fn test_row_identifier_to_str(#[case] output: &str, #[case] input: usize) {
+        assert_eq!(RowIdentifier::to_str(input), output)
+    }
+
+    #[rstest]
+    fn test_invalid_row_identifier_parse() {
+        assert_eq!(
+            RowIdentifier::parse("1").unwrap_err(),
+            CoordinatesError::ParseError("1".to_string())
+        );
 
         assert_eq!(
-            RowIdentifier::from_str("1").unwrap_err(),
-            CoordinatesError::ParseError("1".to_string())
+            RowIdentifier::parse(" / ").unwrap_err(),
+            CoordinatesError::ParseError(" / ".to_string())
         );
     }
 
     #[test]
-    fn test_coordinates_format() {
+    fn test_coordinates_to_string() {
         assert_eq!(Coordinates::new(0, 0).to_string(), "A:1");
         assert_eq!(Coordinates::new(1, 50).to_string(), "B:51");
     }
 
+    #[rstest]
+    fn test_invalid_coordinates_from_str() {
+        assert_eq!(
+            Coordinates::from_str("B").unwrap_err(),
+            CoordinatesError::ParseError("B".to_string())
+        );
+
+        assert_eq!(
+            Coordinates::from_str("B1").unwrap_err(),
+            CoordinatesError::ParseError("B1".to_string())
+        );
+
+        assert_eq!(
+            Coordinates::from_str("B 1").unwrap_err(),
+            CoordinatesError::ParseError("B 1".to_string())
+        );
+    }
+
+    #[rstest]
+    #[case("A:1", Coordinates{row: 0, col:0})]
+    #[case("B:1", Coordinates{row: 1, col:0})]
+    #[case("AA:26", Coordinates{row: 26, col:25})]
+    fn test_coordinates_from_str(#[case] input: &str, #[case] output: Coordinates) {
+        assert_eq!(Coordinates::from_str(input).unwrap(), output)
+    }
+
     #[test]
     fn coordinates_iterator_up() {
-        assert!(Coordinates::from_str("A:1")
-            .unwrap()
-            .iterator(super::Direction::Up)
-            .next()
-            .is_none());
+        let c = Coordinates::from_str("A:1").unwrap();
+        let mut i = c.iterator(Direction::Up);
+        assert!(i.next().is_none());
 
-        assert!(Coordinates::from_str("A:2")
-            .unwrap()
-            .iterator(super::Direction::Up)
-            .next()
-            .is_none());
+        let c = Coordinates::from_str("A:2").unwrap();
+        let mut i = c.iterator(Direction::Up);
+        assert!(i.next().is_none());
 
-        assert!(Coordinates::from_str("A:300")
-            .unwrap()
-            .iterator(super::Direction::Up)
-            .next()
-            .is_none());
+        let c = Coordinates::from_str("B:1").unwrap();
+        let mut i = c.iterator(Direction::Up);
+        assert_eq!(i.next().unwrap(), Coordinates::from_str("A:1").unwrap());
+        assert!(i.next().is_none());
 
-        assert_eq!(
-            Coordinates::from_str("B:1")
-                .unwrap()
-                .iterator(super::Direction::Up)
-                .next()
-                .unwrap(),
-            Coordinates::from_str("A:1").unwrap()
-        );
-
-        assert_eq!(
-            Coordinates::from_str("B:2")
-                .unwrap()
-                .iterator(super::Direction::Up)
-                .next()
-                .unwrap(),
-            Coordinates::from_str("A:2").unwrap()
-        );
+        let c = Coordinates::from_str("C:3").unwrap();
+        let mut i = c.iterator(Direction::Up);
+        assert_eq!(i.next().unwrap(), Coordinates::from_str("B:3").unwrap());
+        assert_eq!(i.next().unwrap(), Coordinates::from_str("A:3").unwrap());
+        assert!(i.next().is_none());
     }
 
     #[test]
