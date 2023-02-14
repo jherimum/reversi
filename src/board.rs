@@ -113,8 +113,6 @@ impl TryFrom<char> for Wrap<Option<Piece>> {
 #[cfg(test)]
 mod tests {
 
-    use std::ops::Deref;
-
     use super::*;
 
     #[test]
