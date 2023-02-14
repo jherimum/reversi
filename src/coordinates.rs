@@ -41,7 +41,7 @@ impl<'c> Iterator for CoordinatesIterator<'c> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.coords.walker(self.dir).walk(self.ix);
-        self.ix = self.ix + 1;
+        self.ix += 1;
         next
     }
 }
@@ -109,7 +109,7 @@ impl<'w> Walker for CoordinatesWalker<'w> {
                 }
             }
             Direction::UpLeft => {
-                if self.0.col >= length && self.0.col >= length {
+                if self.0.col >= length && self.0.row >= length {
                     Some(*self.0 - Coords::new(length, length))
                 } else {
                     None
@@ -137,13 +137,7 @@ impl Sub for Coords {
 
 impl Display for Coordinates {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", RowNumber(self.row).to_string(), self.col + 1)
-    }
-}
-
-impl Into<String> for Coordinates {
-    fn into(self) -> String {
-        self.to_string()
+        write!(f, "{}:{}", RowNumber(self.row), self.col + 1)
     }
 }
 
@@ -181,9 +175,9 @@ impl FromStr for Coordinates {
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct RowNumber(usize);
 
-impl Into<usize> for RowNumber {
-    fn into(self) -> usize {
-        self.0
+impl From<RowNumber> for usize {
+    fn from(value: RowNumber) -> Self {
+        value.0
     }
 }
 
@@ -198,8 +192,8 @@ impl FromStr for RowNumber {
 
         let mut res: usize = 0;
         for c in s.chars() {
-            res = res * 26;
-            res = res + ((c.to_ascii_uppercase() as u8) - ('A' as u8) + 1) as usize;
+            res *= 26;
+            res += ((c.to_ascii_uppercase() as u8) - (b'A') + 1) as usize;
         }
 
         Ok(RowNumber(res - 1))

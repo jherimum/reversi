@@ -56,7 +56,7 @@ impl Display for Board {
             for (_, e) in e.iter().enumerate() {
                 write!(f, "[{}]", e)?;
             }
-            writeln!(f, "")?;
+            writeln!(f)?;
         }
         Ok(())
     }
@@ -91,18 +91,9 @@ impl Board {
 
     pub fn get(&self, coords: &Coords) -> Result<Position, BoardError> {
         if self.size > coords.row && self.size > coords.col {
-            return Ok(Position::new(self.data.clone(), coords.clone()));
+            return Ok(Position::new(self.data.clone(), *coords));
         }
         Err(BoardError::InvalidPosition)
-    }
-}
-
-impl Into<char> for Wrap<Option<Piece>> {
-    fn into(self) -> char {
-        match self {
-            Wrap(None) => ' ',
-            Wrap(Some(p)) => p.into(),
-        }
     }
 }
 

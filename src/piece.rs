@@ -42,9 +42,19 @@ impl Piece {
     }
 }
 
-impl Into<char> for Piece {
-    fn into(self) -> char {
-        match self {
+impl From<char> for Piece {
+    fn from(value: char) -> Self {
+        match value {
+            'R' => Piece::Red,
+            'B' => Piece::Blue,
+            _ => panic!("erro"),
+        }
+    }
+}
+
+impl From<Piece> for char {
+    fn from(value: Piece) -> Self {
+        match value {
             Piece::Blue => 'B',
             Piece::Red => 'R',
         }
@@ -75,10 +85,8 @@ mod tests {
     }
 
     #[test]
-    fn test_into_char() {
-        let red_c: char = Piece::Red.into();
-        let blue_c: char = Piece::Blue.into();
-        assert_eq!(red_c, 'R');
-        assert_eq!(blue_c, 'B');
+    fn test_from_char() {
+        assert_eq!(Piece::Red, Piece::from('R'));
+        assert_eq!(Piece::Blue, Piece::from('B'));
     }
 }
