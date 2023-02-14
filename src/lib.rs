@@ -1,6 +1,6 @@
 pub mod coordinates;
 
-use coordinates::{Coords, Direction};
+use coordinates::{Coords, Dir};
 use std::{
     cell::RefCell,
     fmt::{Debug, Display},
@@ -10,7 +10,7 @@ use std::{
 pub type DataPointer = Rc<RefCell<Vec<Vec<char>>>>;
 
 pub struct PositionIterator {
-    direction: Direction,
+    dir: Dir,
     coords: Coords,
     data: DataPointer,
 }
@@ -19,15 +19,15 @@ impl Iterator for PositionIterator {
     type Item = Position;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.direction {
-            Direction::Up => todo!(),
-            Direction::UpRight => todo!(),
-            Direction::Right => todo!(),
-            Direction::DownRight => todo!(),
-            Direction::Down => todo!(),
-            Direction::DownLeft => todo!(),
-            Direction::Left => todo!(),
-            Direction::UpLeft => todo!(),
+        match self.dir {
+            Dir::Up => todo!(),
+            Dir::UpRight => todo!(),
+            Dir::Right => todo!(),
+            Dir::DownRight => todo!(),
+            Dir::Down => todo!(),
+            Dir::DownLeft => todo!(),
+            Dir::Left => todo!(),
+            Dir::UpLeft => todo!(),
         }
     }
 }
@@ -100,14 +100,14 @@ impl Board {
 
 pub struct Position {
     data: DataPointer,
-    coordinates: Coords,
+    coords: Coords,
 }
 
 impl Debug for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Position")
             .field("piece", &self.piece())
-            .field("coordinates", &self.coordinates)
+            .field("coords", &self.coords)
             .finish()
     }
 }
@@ -119,20 +119,20 @@ impl Display for Position {
 }
 
 impl Position {
-    pub fn new(data: DataPointer, coordinates: Coords) -> Self {
-        Position { data, coordinates }
+    pub fn new(data: DataPointer, coords: Coords) -> Self {
+        Position { data, coords }
     }
 
-    fn stream(&self, direction: Direction) -> PositionIterator {
+    fn stream(&self, dir: Dir) -> PositionIterator {
         PositionIterator {
-            direction: direction,
-            coords: self.coordinates,
+            dir,
+            coords: self.coords,
             data: self.data.clone(),
         }
     }
 
     fn piece(&self) -> Result<Option<Piece>, BoardError> {
-        let x = self.data.borrow_mut()[self.coordinates.row][self.coordinates.col];
+        let x = self.data.borrow_mut()[self.coords.row][self.coords.col];
         let x: Result<Wrap<Option<Piece>>, BoardError> = x.try_into();
         x.map(|w| w.0)
     }
@@ -142,7 +142,7 @@ impl Position {
             return Err(BoardError::PositionAlreadyOccupied);
         }
 
-        self.data.borrow_mut()[self.coordinates.row][self.coordinates.col] = piece.into();
+        self.data.borrow_mut()[self.coords.row][self.coords.col] = piece.into();
 
         Ok(self)
     }
@@ -151,8 +151,7 @@ impl Position {
         match self.piece() {
             Ok(p) => match p {
                 Some(p) => {
-                    self.data.borrow_mut()[self.coordinates.row][self.coordinates.col] =
-                        p.flip().into();
+                    self.data.borrow_mut()[self.coords.row][self.coords.col] = p.flip().into();
                     Ok(self)
                 }
                 None => Err(BoardError::PositionNotOcuppiedError),
@@ -219,9 +218,10 @@ pub struct Wrap<T>(T);
 
 #[cfg(test)]
 mod tests {
+
     use std::str::FromStr;
 
-    use crate::{coordinates::Coordinates, Board, Piece};
+    use crate::{coordinates::Coords, Board, Piece};
 
     #[test]
     fn test_flip() {
@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn test1() {
         let b = Board::new(8).unwrap();
-        let c = Coordinates::from_str("A:1").unwrap();
+        let c = Coords::from_str("A:1").unwrap();
         let p = b.get(&c).unwrap().place(Piece::Blue).unwrap();
         dbg!(p);
 
