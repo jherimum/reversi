@@ -11,37 +11,38 @@ pub const EMPTY_POSITION: char = ' ';
 pub type MatrixPointer = Rc<RefCell<Matrix>>;
 
 #[derive(Debug)]
-pub struct Matrix(Vec<Vec<char>>);
+pub struct Matrix(Box<[char]>);
 
 impl Deref for Matrix {
-    type Target = Vec<Vec<char>>;
+    type Target = [char];
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.as_ref()
     }
 }
 
 impl DerefMut for Matrix {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        self.0.as_mut()
     }
 }
 
 impl Matrix {
     pub fn size(&self) -> usize {
-        self.len()
+        (self.0.len() as f64).sqrt().round() as usize
     }
 
     pub fn new(size: usize) -> Self {
-        Matrix(vec![vec![EMPTY_POSITION; size]; size])
+        Matrix(vec![EMPTY_POSITION; size * size].into_boxed_slice())
     }
 
     pub fn write(&mut self, coords: Coords, c: char) {
-        self[coords.row][coords.col] = c;
+        let size = self.size();
+        self[(size * coords.row) + coords.col] = c;
     }
 
     pub fn read(&self, coords: Coords) -> char {
-        self[coords.row][coords.col]
+        self[(self.size() * coords.row) + coords.col]
     }
 }
 
@@ -62,16 +63,20 @@ pub struct Board {
 
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (row, e) in self.matrix.borrow().iter().enumerate() {
-            for (col, _) in e.iter().enumerate() {
+        let x = self.matrix.borrow();
+        let x = x.chunks(self.size);
+
+        for row in x.into_iter().enumerate() {
+            for col in row.1.iter().enumerate() {
                 write!(
                     f,
                     " {}",
-                    Position::new(self.matrix.clone(), Coords::new(row, col))
+                    Position::new(self.matrix.clone(), Coords::new(row.0, col.0))
                 )?;
             }
             writeln!(f)?;
         }
+
         Ok(())
     }
 }
@@ -111,6 +116,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_matrix() {
+        let mut m = Matrix::new(8);
+        let c = m.read(Coords::new(7, 7));
+        let c = m.write(Coords::new(7, 7), 'B');
+        dbg!(m);
+    }
+
+    #[test]
     fn test_valid_board_size() {
         assert!(Board::new(16).is_ok());
         assert!(Board::new(8).is_ok());
@@ -129,7 +142,7 @@ mod tests {
             ("D:2", Piece::Red),
         ];
         let board = Board::new(8).unwrap();
-        println!("{}", board);
+        //println!("{}", board);
 
         for m in moves {
             board
@@ -137,7 +150,7 @@ mod tests {
                 .unwrap()
                 .place(m.1)
                 .unwrap();
-            println!("{}", board);
+            //println!("{}", board);
         }
     }
 }

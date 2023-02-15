@@ -1,4 +1,4 @@
-use crate::{board::Board, coordinates::Coords, piece::Piece, position::Position};
+use crate::{board::Board, coordinates::Coords, piece::Piece};
 use anyhow::Result;
 use std::{fmt::Display, str::FromStr};
 

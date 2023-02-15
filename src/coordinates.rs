@@ -125,7 +125,7 @@ impl FromStr for Coordinates {
     type Err = CoordinatesError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let regex = Regex::new(r"\A(?P<row>[A-Z]|[a-z]+):(?P<col>\d+)\z").expect("Invalid regex");
+        let regex = Regex::new(r"\A(?P<row>[A-Za-z]+):(?P<col>\d+)\z").expect("Invalid regex");
 
         let captures = regex
             .captures(s)
@@ -171,7 +171,7 @@ impl FromStr for RowNumber {
     type Err = CoordinatesError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let valid_regex = Regex::new(r"\A([A-Z]|[a-z])+\z").expect("regex error");
+        let valid_regex = Regex::new(r"\A([A-Za-z])+\z").expect("regex error");
         if !valid_regex.is_match(s) {
             return Err(CoordinatesError::ParseError(s.to_string()));
         }
@@ -216,6 +216,11 @@ mod tests {
     #[case("AA", 26)]
     fn test_row_identifier_parse(#[case] input: &str, #[case] output: usize) {
         assert_eq!(RowNumber::from_str(input).unwrap(), RowNumber(output))
+    }
+
+    #[rstest]
+    fn test_row_identifier_parse1() {
+        assert_eq!(RowNumber::from_str("AA").unwrap(), RowNumber(26))
     }
 
     #[rstest]
@@ -270,6 +275,14 @@ mod tests {
     #[case("AA:26", Coords{row: 26, col:25})]
     fn test_coordinates_from_str(#[case] input: &str, #[case] output: Coords) {
         assert_eq!(Coords::from_str(input).unwrap(), output)
+    }
+
+    #[rstest]
+    fn test_coordinates_from_str_1() {
+        assert_eq!(
+            Coords::from_str("AA:26").unwrap(),
+            Coords { row: 26, col: 25 }
+        )
     }
 
     #[test]

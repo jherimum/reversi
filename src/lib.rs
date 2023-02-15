@@ -52,8 +52,6 @@ impl Not for Direction {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
-
     #[test]
     fn x() {}
 }
