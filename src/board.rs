@@ -62,7 +62,7 @@ impl Display for Board {
             for (col, _) in e.iter().enumerate() {
                 write!(
                     f,
-                    " {} ",
+                    " {}",
                     Position::new(self.matrix.clone(), Coords::new(row, col))
                 )?;
             }
@@ -91,16 +91,18 @@ impl Board {
         })
     }
 
-    pub fn get(&self, coords: &Coords) -> Result<Position, BoardError> {
+    pub fn get(&self, coords: Coords) -> Result<Position, BoardError> {
         if self.size > coords.row && self.size > coords.col {
-            return Ok(Position::new(self.matrix.clone(), *coords));
+            return Ok(Position::new(self.matrix.clone(), coords));
         }
-        Err(BoardError::InvalidPosition(*coords))
+        Err(BoardError::InvalidPosition(coords))
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    use std::str::FromStr;
 
     use super::*;
 
@@ -115,6 +117,23 @@ mod tests {
 
     #[test]
     fn test_board_initial_setup() {
-        println!("{}", Board::new(8).unwrap());
+        print!("{}[2J", 27 as char);
+        let moves = vec![
+            ("E:3", Piece::Blue),
+            ("D:3", Piece::Red),
+            ("C:3", Piece::Blue),
+            ("D:2", Piece::Red),
+        ];
+        let board = Board::new(8).unwrap();
+        println!("{}", board);
+
+        for m in moves {
+            board
+                .get(Coords::from_str(m.0).unwrap())
+                .unwrap()
+                .place(m.1)
+                .unwrap();
+            println!("{}", board);
+        }
     }
 }

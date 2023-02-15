@@ -1,5 +1,7 @@
 use std::ops::{Deref, Not};
 
+use enum_iterator::Sequence;
+
 pub mod board;
 pub mod coordinates;
 pub mod game;
@@ -18,7 +20,7 @@ impl<T> Deref for Wrap<T> {
 
 pub type Dir = Direction;
 
-#[derive(Debug, PartialEq, Clone, Copy, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq, Sequence)]
 pub enum Direction {
     Up,
     UpRight,
@@ -45,4 +47,13 @@ impl Not for Direction {
             Direction::UpLeft => Self::DownRight,
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn x() {}
 }
