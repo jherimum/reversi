@@ -1,4 +1,4 @@
-use crate::{board::MatrixPointer, coordinates::Coords, piece::Piece};
+use crate::{board::MatrixPointer, coordinates::Coords, piece::Piece, Wrap};
 use colored::*;
 use std::fmt::{Debug, Display};
 use thiserror::Error;
@@ -24,10 +24,8 @@ impl Position {
 
     fn piece(&self) -> Option<Piece> {
         let c = self.matrix.borrow().read(self.coords);
-        match c {
-            ' ' => None,
-            c => Some(Piece::from(c)),
-        }
+        let piece: Wrap<Option<Piece>> = c.into();
+        *piece
     }
 
     pub fn place(self, piece: Piece) -> Result<Position, PositionError> {
