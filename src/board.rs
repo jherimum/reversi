@@ -28,6 +28,10 @@ impl DerefMut for Matrix {
 }
 
 impl Matrix {
+    pub fn size(&self) -> usize {
+        self.len()
+    }
+
     pub fn new(size: usize) -> Self {
         Matrix(vec![vec![EMPTY_POSITION; size]; size])
     }
@@ -117,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_board_initial_setup() {
-        print!("{}[2J", 27 as char);
+        //print!("{}[2J", 27 as char);
         let moves = vec![
             ("E:3", Piece::Blue),
             ("D:3", Piece::Red),

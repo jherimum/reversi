@@ -1,4 +1,10 @@
-use crate::{board::MatrixPointer, coordinates::Coords, piece::Piece, walker::Walkable, Dir, Wrap};
+use crate::{
+    board::MatrixPointer,
+    coordinates::Coords,
+    piece::Piece,
+    walker::{Walkable, Walker, WalkerIterator},
+    Dir, Wrap,
+};
 use colored::*;
 use enum_iterator::all;
 use std::fmt::{Debug, Display};
@@ -19,11 +25,49 @@ pub struct Position {
     coords: Coords,
 }
 
-impl Position {
-    pub fn copy(&self, coords: Coords) -> Position {
-        Position::new(self.matrix.clone(), coords)
-    }
+pub struct PositionWalker(Position, Dir);
 
+impl IntoIterator for PositionWalker {
+    type Item = Position;
+
+    type IntoIter = WalkerIterator<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        WalkerIterator::new(self.0, self.1)
+    }
+}
+
+impl Walker for PositionWalker {
+    type WItem = Position;
+
+    fn walk(&self, length: usize) -> Option<Self::WItem> {
+        let coords = self.0.coords.walker(self.1).walk(length);
+
+        let resposta = match coords {
+            Some(c) => {
+                if self.0.matrix.borrow().size() > c.row && self.0.matrix.borrow().size() > c.col {
+                    Some(Position::new(self.0.matrix.clone(), c))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+
+        resposta
+    }
+}
+
+impl Walkable for Position {
+    type WItem = Position;
+    type W = PositionWalker;
+
+    fn walker(&self, dir: Dir) -> Self::W {
+        PositionWalker(self.clone(), dir)
+    }
+}
+
+impl Position {
     pub fn new(matrix: MatrixPointer, coords: Coords) -> Self {
         Position { matrix, coords }
     }
@@ -51,16 +95,13 @@ impl Position {
 
     fn solve_dir(&self, piece: Piece, dir: Dir) {
         let turnnables = self
-            .coords
             .walker(dir)
             .into_iter()
-            .map(|c| Position::new(self.matrix.clone(), c))
             .take_while(|p| p.piece() == Some(!piece))
             .collect::<Vec<_>>();
         let turn = turnnables
             .last()
-            .and_then(|last_pos| last_pos.coords.walker(dir).into_iter().next())
-            .map(|c| Position::new(self.matrix.clone(), c))
+            .and_then(|last_pos| last_pos.walker(dir).into_iter().next())
             .map(|p| p.piece() == Some(piece))
             .unwrap_or(false);
 
