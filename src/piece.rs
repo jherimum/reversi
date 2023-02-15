@@ -2,6 +2,8 @@ use std::{fmt::Display, ops::Not};
 
 use rand::Rng;
 
+use crate::{board::EMPTY_POSITION, Wrap};
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Piece {
     Blue,
@@ -42,12 +44,21 @@ impl Piece {
     }
 }
 
+impl From<char> for Wrap<Option<Piece>> {
+    fn from(value: char) -> Self {
+        Wrap(match value {
+            EMPTY_POSITION => None,
+            c => Some(Piece::from(c)),
+        })
+    }
+}
+
 impl From<char> for Piece {
     fn from(value: char) -> Self {
         match value {
             'R' => Piece::Red,
             'B' => Piece::Blue,
-            _ => panic!("erro"),
+            _ => panic!("char: {} could not be converted to Piece", value),
         }
     }
 }

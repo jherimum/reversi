@@ -6,14 +6,14 @@ use std::{
     rc::Rc,
 };
 
-const EMPTY_POSITION: char = ' ';
+pub const EMPTY_POSITION: char = ' ';
 
-pub type DataPointer = Rc<RefCell<RawData>>;
+pub type MatrixPointer = Rc<RefCell<Matrix>>;
 
 #[derive(Debug)]
-pub struct RawData(Vec<Vec<char>>);
+pub struct Matrix(Vec<Vec<char>>);
 
-impl Deref for RawData {
+impl Deref for Matrix {
     type Target = Vec<Vec<char>>;
 
     fn deref(&self) -> &Self::Target {
@@ -21,15 +21,15 @@ impl Deref for RawData {
     }
 }
 
-impl DerefMut for RawData {
+impl DerefMut for Matrix {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl RawData {
-    fn new(size: usize) -> Self {
-        RawData(vec![vec![EMPTY_POSITION; size]; size])
+impl Matrix {
+    pub fn new(size: usize) -> Self {
+        Matrix(vec![vec![EMPTY_POSITION; size]; size])
     }
 
     pub fn write(&mut self, coords: Coords, c: char) {
@@ -43,36 +43,27 @@ impl RawData {
 
 #[derive(Debug, thiserror::Error)]
 pub enum BoardError {
-    #[error("data store disconnected")]
-    ParseError,
+    #[error("Invalid position: {0}")]
+    InvalidPosition(Coords),
 
-    #[error("invalid position")]
-    InvalidPosition,
-
-    #[error("positiin occupied")]
-    PositionAlreadyOccupied,
-
-    #[error("position not occupied")]
-    PositionNotOcuppiedError,
-
-    #[error("Invalid board size")]
-    InvalidBoardSize,
+    #[error("Invalid board size: {0}. The size must be a number greater than 4 and even.")]
+    InvalidBoardSize(usize),
 }
 
 #[derive(Debug)]
 pub struct Board {
     size: usize,
-    data: DataPointer,
+    matrix: MatrixPointer,
 }
 
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (row, e) in self.data.borrow().iter().enumerate() {
+        for (row, e) in self.matrix.borrow().iter().enumerate() {
             for (col, _) in e.iter().enumerate() {
                 write!(
                     f,
                     " {} ",
-                    Position::new(self.data.clone(), Coords::new(row, col))
+                    Position::new(self.matrix.clone(), Coords::new(row, col))
                 )?;
             }
             writeln!(f)?;
@@ -83,11 +74,11 @@ impl Display for Board {
 
 impl Board {
     pub fn new(size: usize) -> Result<Board, BoardError> {
-        if size <= 4 || (1 == size % 2) {
-            return Err(BoardError::InvalidBoardSize);
+        if size <= 4 || (size % 2 == 1) {
+            return Err(BoardError::InvalidBoardSize(size));
         }
 
-        let mut data = RawData::new(size);
+        let mut data = Matrix::new(size);
         let half = size / 2;
         data.write(Coords::new(half, half), Piece::Blue.into());
         data.write(Coords::new(half - 1, half - 1), Piece::Blue.into());
@@ -96,15 +87,15 @@ impl Board {
 
         Ok(Board {
             size,
-            data: Rc::new(RefCell::new(data)),
+            matrix: Rc::new(RefCell::new(data)),
         })
     }
 
     pub fn get(&self, coords: &Coords) -> Result<Position, BoardError> {
         if self.size > coords.row && self.size > coords.col {
-            return Ok(Position::new(self.data.clone(), *coords));
+            return Ok(Position::new(self.matrix.clone(), *coords));
         }
-        Err(BoardError::InvalidPosition)
+        Err(BoardError::InvalidPosition(*coords))
     }
 }
 

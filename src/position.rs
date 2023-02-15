@@ -1,8 +1,4 @@
-use crate::{
-    board::{BoardError, DataPointer},
-    coordinates::Coords,
-    piece::Piece,
-};
+use crate::{board::MatrixPointer, coordinates::Coords, piece::Piece};
 use colored::*;
 use std::fmt::{Debug, Display};
 use thiserror::Error;
@@ -11,32 +7,35 @@ use thiserror::Error;
 pub enum PositionError {
     #[error("position could not be flipped")]
     FlipError,
+
+    #[error("position could not be flipped")]
+    PositionAlreadyOccupied,
 }
 
 pub struct Position {
-    data: DataPointer,
+    matrix: MatrixPointer,
     coords: Coords,
 }
 
 impl Position {
-    pub fn new(data: DataPointer, coords: Coords) -> Self {
-        Position { data, coords }
+    pub fn new(matrix: MatrixPointer, coords: Coords) -> Self {
+        Position { matrix, coords }
     }
 
     fn piece(&self) -> Option<Piece> {
-        let c = self.data.borrow().read(self.coords);
+        let c = self.matrix.borrow().read(self.coords);
         match c {
             ' ' => None,
             c => Some(Piece::from(c)),
         }
     }
 
-    pub fn place(self, piece: Piece) -> Result<Position, BoardError> {
+    pub fn place(self, piece: Piece) -> Result<Position, PositionError> {
         if self.occupied() {
-            return Err(BoardError::PositionAlreadyOccupied);
+            return Err(PositionError::PositionAlreadyOccupied);
         }
 
-        self.data.borrow_mut().write(self.coords, piece.into());
+        self.matrix.borrow_mut().write(self.coords, piece.into());
 
         Ok(self)
     }
@@ -44,7 +43,7 @@ impl Position {
     pub fn flip(self) -> Result<Self, PositionError> {
         match self.piece() {
             Some(p) => {
-                self.data.borrow_mut().write(self.coords, (!p).into());
+                self.matrix.borrow_mut().write(self.coords, (!p).into());
                 Ok(self)
             }
             None => Err(PositionError::FlipError),
