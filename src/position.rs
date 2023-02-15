@@ -78,37 +78,37 @@ impl Position {
         *piece
     }
 
-    pub fn place(self, piece: Piece) -> Result<Position, PositionError> {
+    pub fn place(self, piece: Piece) -> Result<Vec<Coords>, PositionError> {
         if self.occupied() {
             return Err(PositionError::PositionAlreadyOccupied);
         }
-        self.solve(piece);
+        let flipped = self.solve(piece);
         self.matrix.borrow_mut().write(self.coords, piece.into());
-        Ok(self)
+        Ok(flipped.iter().map(|p| p.coords).collect())
     }
 
-    fn solve(&self, piece: Piece) {
-        for dir in all::<Dir>() {
-            self.solve_dir(piece, dir);
-        }
+    fn solve(&self, piece: Piece) -> Vec<Position> {
+        all::<Dir>()
+            .into_iter()
+            .flat_map(|dir| self.solve_dir(piece, dir))
+            .map(|p| p.flip().unwrap())
+            .collect::<Vec<_>>()
     }
 
-    fn solve_dir(&self, piece: Piece, dir: Dir) {
-        let turnnables = self
+    fn solve_dir(&self, piece: Piece, dir: Dir) -> Vec<Position> {
+        let flippables = self
             .walker(dir)
             .into_iter()
             .take_while(|p| p.piece() == Some(!piece))
             .collect::<Vec<_>>();
-        let turn = turnnables
+        match flippables
             .last()
             .and_then(|last_pos| last_pos.walker(dir).into_iter().next())
             .map(|p| p.piece() == Some(piece))
-            .unwrap_or(false);
-
-        if turn {
-            for p in turnnables {
-                p.flip();
-            }
+            .unwrap_or(false)
+        {
+            true => flippables,
+            false => vec![],
         }
     }
 
