@@ -155,6 +155,12 @@ impl FromStr for Coordinates {
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct RowNumber(usize);
 
+impl RowNumber {
+    pub fn new(number: usize) -> Self {
+        RowNumber(number)
+    }
+}
+
 impl From<RowNumber> for usize {
     fn from(value: RowNumber) -> Self {
         value.0

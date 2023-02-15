@@ -17,8 +17,8 @@ impl Game {
         })
     }
 
-    pub fn r#move(&mut self, coords: Coords) -> Result<()> {
-        self.board.get(&coords)?.r#move(self.turn)?;
+    pub fn place(&mut self, coords: Coords) -> Result<()> {
+        self.board.get(&coords)?.place(self.turn)?;
         self.moves.push(Move::new(self.turn, coords));
         self.turn = !self.turn;
         Ok(())

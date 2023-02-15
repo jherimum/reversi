@@ -1,16 +1,27 @@
-use crate::{coordinates::Coords, piece::Piece, position::Position, Wrap};
+use crate::{
+    coordinates::{Coords, RowNumber},
+    piece::Piece,
+    position::Position,
+};
 use std::{
     cell::RefCell,
     fmt::{Debug, Display},
+    ops::Deref,
     rc::Rc,
 };
 
 pub type DataPointer = Rc<RefCell<RawData>>;
 
-//criar iterator para RawData
-
 #[derive(Debug)]
 pub struct RawData(Vec<Vec<char>>);
+
+impl Deref for RawData {
+    type Target = Vec<Vec<char>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl RawData {
     fn new(size: usize) -> Self {
@@ -50,21 +61,32 @@ pub struct Board {
     data: DataPointer,
 }
 
-impl Display for Board {
+struct Header(usize);
+
+impl Display for Header {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (_, e) in self.data.borrow().0.iter().enumerate() {
-            for (_, e) in e.iter().enumerate() {
-                write!(f, "[{}]", e)?;
-            }
-            writeln!(f)?;
+        for i in 0..self.0 {
+            write!(f, " {} ", i + 1)?;
         }
         Ok(())
     }
 }
 
-impl From<Option<Piece>> for Wrap<Option<Piece>> {
-    fn from(value: Option<Piece>) -> Self {
-        Wrap(value)
+impl Display for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, " {}", Header(self.size))?;
+        for (row, e) in self.data.borrow().iter().enumerate() {
+            write!(f, "{}", RowNumber::new(row))?;
+            for (col, _) in e.iter().enumerate() {
+                write!(
+                    f,
+                    "{}",
+                    Position::new(self.data.clone(), Coords::new(row, col))
+                )?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
     }
 }
 
@@ -75,13 +97,11 @@ impl Board {
         }
 
         let mut data = RawData::new(size);
-        data.write(Coords::new(size / 2, size / 2), Piece::Blue.into());
-        data.write(
-            Coords::new((size / 2) - 1, (size / 2) - 1),
-            Piece::Blue.into(),
-        );
-        data.write(Coords::new((size / 2) - 1, size / 2), Piece::Red.into());
-        data.write(Coords::new(size / 2, (size / 2) - 1), Piece::Red.into());
+        let half = size / 2;
+        data.write(Coords::new(half, half), Piece::Blue.into());
+        data.write(Coords::new(half - 1, half - 1), Piece::Blue.into());
+        data.write(Coords::new(half - 1, half), Piece::Red.into());
+        data.write(Coords::new(half, half - 1), Piece::Red.into());
 
         Ok(Board {
             size,
@@ -94,19 +114,6 @@ impl Board {
             return Ok(Position::new(self.data.clone(), *coords));
         }
         Err(BoardError::InvalidPosition)
-    }
-}
-
-impl TryFrom<char> for Wrap<Option<Piece>> {
-    type Error = BoardError;
-
-    fn try_from(value: char) -> Result<Self, Self::Error> {
-        match value {
-            'B' => Ok(Wrap(Some(Piece::Blue))),
-            'R' => Ok(Wrap(Some(Piece::Red))),
-            ' ' => Ok(Wrap(None)),
-            _ => Err(BoardError::ParseError),
-        }
     }
 }
 
@@ -125,5 +132,7 @@ mod tests {
     }
 
     #[test]
-    fn test_board_initial_setup() {}
+    fn test_board_initial_setup() {
+        println!("{}", Board::new(8).unwrap());
+    }
 }
