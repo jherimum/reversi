@@ -125,7 +125,7 @@ impl FromStr for Coordinates {
     type Err = CoordinatesError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let regex = Regex::new(r"\A(?P<row>[A-Z]+):(?P<col>\d+)\z").expect("Invalid regex");
+        let regex = Regex::new(r"\A(?P<row>[A-Z]|[a-z]+):(?P<col>\d+)\z").expect("Invalid regex");
 
         let captures = regex
             .captures(s)
