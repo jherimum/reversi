@@ -60,10 +60,10 @@ impl Display for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.piece() {
             Some(p) => match p {
-                Piece::Blue => write!(f, " {} ", "●".blue()),
-                Piece::Red => write!(f, " {} ", "●".red()),
+                Piece::Blue => write!(f, "{}", "●".blue()),
+                Piece::Red => write!(f, "{}", "●".red()),
             },
-            None => write!(f, " {} ", "●".white()),
+            None => write!(f, "{}", "○".white()),
         }
     }
 }

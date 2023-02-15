@@ -1,14 +1,12 @@
-use crate::{
-    coordinates::{Coords, RowNumber},
-    piece::Piece,
-    position::Position,
-};
+use crate::{coordinates::Coords, piece::Piece, position::Position};
 use std::{
     cell::RefCell,
     fmt::{Debug, Display},
-    ops::Deref,
+    ops::{Deref, DerefMut},
     rc::Rc,
 };
+
+const EMPTY_POSITION: char = ' ';
 
 pub type DataPointer = Rc<RefCell<RawData>>;
 
@@ -23,17 +21,23 @@ impl Deref for RawData {
     }
 }
 
+impl DerefMut for RawData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl RawData {
     fn new(size: usize) -> Self {
-        RawData(vec![vec![' '; size]; size])
+        RawData(vec![vec![EMPTY_POSITION; size]; size])
     }
 
     pub fn write(&mut self, coords: Coords, c: char) {
-        self.0[coords.row][coords.col] = c;
+        self[coords.row][coords.col] = c;
     }
 
     pub fn read(&self, coords: Coords) -> char {
-        self.0[coords.row][coords.col]
+        self[coords.row][coords.col]
     }
 }
 
@@ -61,26 +65,13 @@ pub struct Board {
     data: DataPointer,
 }
 
-struct Header(usize);
-
-impl Display for Header {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for i in 0..self.0 {
-            write!(f, " {} ", i + 1)?;
-        }
-        Ok(())
-    }
-}
-
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, " {}", Header(self.size))?;
         for (row, e) in self.data.borrow().iter().enumerate() {
-            write!(f, "{}", RowNumber::new(row))?;
             for (col, _) in e.iter().enumerate() {
                 write!(
                     f,
-                    "{}",
+                    " {} ",
                     Position::new(self.data.clone(), Coords::new(row, col))
                 )?;
             }
